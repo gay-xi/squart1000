@@ -17,7 +17,9 @@
   .input-group { margin-bottom: 20px; text-align: left; }
   label { display: block; font-size: 0.9rem; opacity: 0.7; margin-bottom: 8px; font-family: sans-serif; }
   input { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 12px; font-size: 1.5rem; border-radius: 10px; box-sizing: border-box; }
-  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 10px; cursor: pointer; }
+  
+  /* 버튼 스타일 */
+  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 10px; cursor: pointer; position: relative; z-index: 3000; }
 
   /* 메인 레이아웃 */
   #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; justify-content: center; align-items: center; position: relative; box-sizing: border-box; }
@@ -29,10 +31,7 @@
 
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
-  
-  /* 타이머: 롱프레스 영역 */
-  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; z-index: 50; }
-  
+  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; }
   #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; transition: transform 0.05s; font-weight: 900; }
   #bar-wrapper { position: absolute; bottom: 5vh; width: 90%; max-width: 1200px; }
   #bar-container { height: 35px; background: #222; border-radius: 20px; overflow: hidden; border: 2px solid #333; }
@@ -48,7 +47,7 @@
     <h2 style="color:var(--primary-color); margin-bottom: 30px;">CHALLENGE SET</h2>
     <div class="input-group"><label>DAY</label><input type="number" id="input-day" value="1"></div>
     <div class="input-group"><label>SUBSCRIBERS</label><input type="number" id="input-subs" value="1000"></div>
-    <button id="start-btn">START SYNC</button>
+    <button id="start-btn" onclick="startChallenge(event)">START SYNC</button>
   </div>
 </div>
 
@@ -86,10 +85,12 @@
   let isReady = false;
   let resetTimer;
 
-  // [시작 버튼 로직] - 가장 확실한 방식으로 수정
-  document.getElementById('start-btn').addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // [시작 함수] - Inline onclick에서 호출됨
+  function startChallenge(e) {
+    if(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
     const dayVal = document.getElementById("input-day").value || 1;
     const subsVal = document.getElementById("input-subs").value || 0;
@@ -101,16 +102,14 @@
       startTime: Date.now(),
       started: true
     });
-  });
+  }
 
-  // [리셋 로직]
   function triggerReset() {
     if(confirm("카운트를 0으로 초기화할까요?")) {
       dataRef.update({ count: 0 });
     }
   }
 
-  // [데이터 실시간 동기화]
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
@@ -130,10 +129,14 @@
       document.getElementById("setup-screen").style.display = "none";
       document.getElementById("main-panel").style.display = "flex";
       isReady = true;
+    } else {
+      // 서버에서 초기화 시 다시 설정화면으로
+      document.getElementById("setup-screen").style.display = "flex";
+      document.getElementById("main-panel").style.display = "none";
+      isReady = false;
     }
   });
 
-  // [타이머 계산]
   setInterval(() => {
     if (localData.started && localData.startTime > 0) {
       const diff = Math.floor((Date.now() - localData.startTime) / 1000);
@@ -143,20 +146,21 @@
     }
   }, 1000);
 
-  // [화면 클릭 이벤트]
+  // [카운트 업 & 롱프레스 리셋]
   document.addEventListener('pointerdown', (e) => {
-    // 설정 화면에 있을 때는 카운트 업 무시
+    // 1. 설정창(setup-screen) 안의 요소를 누를 때는 카운트 로직 무시
+    if (e.target.closest('#setup-screen')) return;
+    
+    // 2. 준비 안됐으면 무시
     if (!isReady) return;
-    // 버튼이나 입력창 클릭 시 무시
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
 
-    // 1. 타이머를 누른 경우 (3초 롱프레스 감지)
+    // 3. 타이머 누르면 리셋 감지
     if (e.target.id === 'timer') {
       resetTimer = setTimeout(triggerReset, 3000);
       return;
     }
 
-    // 2. 그 외 화면 누르면 카운트 +1
+    // 4. 일반 화면 클릭 시 카운트 +1
     if (localData.count < 1000) {
       dataRef.update({ count: localData.count + 1 });
     }
