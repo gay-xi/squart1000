@@ -17,9 +17,7 @@
   .input-group { margin-bottom: 20px; text-align: left; }
   label { display: block; font-size: 0.9rem; opacity: 0.7; margin-bottom: 8px; font-family: sans-serif; }
   input { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 12px; font-size: 1.5rem; border-radius: 10px; box-sizing: border-box; }
-  
-  /* 버튼 스타일 */
-  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 10px; cursor: pointer; position: relative; z-index: 3000; }
+  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 10px; cursor: pointer; }
 
   /* 메인 레이아웃 */
   #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; justify-content: center; align-items: center; position: relative; box-sizing: border-box; }
@@ -31,12 +29,14 @@
 
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
-  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; }
+  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; }
   #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; transition: transform 0.05s; font-weight: 900; }
+
   #bar-wrapper { position: absolute; bottom: 5vh; width: 90%; max-width: 1200px; }
   #bar-container { height: 35px; background: #222; border-radius: 20px; overflow: hidden; border: 2px solid #333; }
   #fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary-color), #00ff88); transition: width 0.3s; }
   .bump { transform: scale(1.08); color: var(--primary-color); }
+
   @media (max-aspect-ratio: 1/1) { #sub-container { position: static; margin-bottom: 2vh; } #count { font-size: 30vh; } #timer { font-size: 10vh; } }
 </style>
 </head>
@@ -47,7 +47,7 @@
     <h2 style="color:var(--primary-color); margin-bottom: 30px;">CHALLENGE SET</h2>
     <div class="input-group"><label>DAY</label><input type="number" id="input-day" value="1"></div>
     <div class="input-group"><label>SUBSCRIBERS</label><input type="number" id="input-subs" value="1000"></div>
-    <button id="start-btn" onclick="startChallenge(event)">START SYNC</button>
+    <button id="start-btn" onclick="startChallenge()">START SYNC</button>
   </div>
 </div>
 
@@ -77,66 +77,62 @@
     appId: "1:551493654031:web:78bfe8ddfef889a96b357a"
   };
 
+  // Firebase 초기화
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const dataRef = db.ref('squat_challenge');
 
   let localData = { count: 0, day: 1, subs: 0, startTime: 0, started: false };
   let isReady = false;
-  let resetTimer;
 
-  // [시작 함수] - Inline onclick에서 호출됨
-  function startChallenge(e) {
-    if(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+  // [데이터 업데이트 함수] 폰에서 누를 때 실행
+  function sendUpdate(newCount) {
+    dataRef.update({ count: newCount });
+  }
 
-    const dayVal = document.getElementById("input-day").value || 1;
-    const subsVal = document.getElementById("input-subs").value || 0;
+  // [시작 함수]
+  function startChallenge() {
+    const day = document.getElementById("input-day").value || 1;
+    const subs = document.getElementById("input-subs").value || 0;
     
+    // DB에 시작 정보 전송
     dataRef.set({
       count: 0,
-      day: dayVal,
-      subs: subsVal,
+      day: day,
+      subs: subs,
       startTime: Date.now(),
       started: true
     });
   }
 
-  function triggerReset() {
-    if(confirm("카운트를 0으로 초기화할까요?")) {
-      dataRef.update({ count: 0 });
-    }
-  }
-
+  // [DB 감시] 태블릿과 폰 양쪽에서 실시간으로 화면을 바꿈
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
+    
     localData = data;
     
+    // UI 업데이트
     document.getElementById("count").innerText = data.count;
     document.getElementById("day-display").innerText = "DAY " + data.day;
     document.getElementById("subs-display").innerText = Number(data.subs).toLocaleString();
     document.getElementById("fill").style.width = (data.count / 1000 * 100) + "%";
     
+    // 애니메이션
     const countEl = document.getElementById("count");
     countEl.classList.remove("bump");
     void countEl.offsetWidth; 
     countEl.classList.add("bump");
 
+    // 시작 상태라면 메인 화면 표시
     if (data.started) {
       document.getElementById("setup-screen").style.display = "none";
       document.getElementById("main-panel").style.display = "flex";
       isReady = true;
-    } else {
-      // 서버에서 초기화 시 다시 설정화면으로
-      document.getElementById("setup-screen").style.display = "flex";
-      document.getElementById("main-panel").style.display = "none";
-      isReady = false;
     }
   });
 
+  // [타이머] DB의 시작시간 기준으로 계산 (양쪽 기기 시간 오차 방지)
   setInterval(() => {
     if (localData.started && localData.startTime > 0) {
       const diff = Math.floor((Date.now() - localData.startTime) / 1000);
@@ -146,28 +142,12 @@
     }
   }, 1000);
 
-  // [카운트 업 & 롱프레스 리셋]
+  // [터치 이벤트]
   document.addEventListener('pointerdown', (e) => {
-    // 1. 설정창(setup-screen) 안의 요소를 누를 때는 카운트 로직 무시
-    if (e.target.closest('#setup-screen')) return;
-    
-    // 2. 준비 안됐으면 무시
-    if (!isReady) return;
-
-    // 3. 타이머 누르면 리셋 감지
-    if (e.target.id === 'timer') {
-      resetTimer = setTimeout(triggerReset, 3000);
-      return;
-    }
-
-    // 4. 일반 화면 클릭 시 카운트 +1
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !isReady) return;
     if (localData.count < 1000) {
-      dataRef.update({ count: localData.count + 1 });
+      sendUpdate(localData.count + 1);
     }
-  });
-
-  document.addEventListener('pointerup', () => {
-    clearTimeout(resetTimer);
   });
 </script>
 </body>
