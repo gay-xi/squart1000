@@ -30,10 +30,9 @@
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
   
-  #timer-container { position: relative; display: inline-block; }
-  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; }
-  #secret-reset-btn { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: none; cursor: pointer; z-index: 100; }
-
+  /* 타이머: 이제 리셋 트리거 역할을 합니다 */
+  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; }
+  
   #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; transition: transform 0.05s; font-weight: 900; }
 
   #bar-wrapper { position: absolute; bottom: 5vh; width: 90%; max-width: 1200px; }
@@ -51,7 +50,7 @@
     <h2 style="color:var(--primary-color); margin-bottom: 30px;">CHALLENGE SET</h2>
     <div class="input-group"><label>DAY</label><input type="number" id="input-day" value="1"></div>
     <div class="input-group"><label>SUBSCRIBERS</label><input type="number" id="input-subs" value="1000"></div>
-    <button id="start-btn" onclick="startChallenge(event)">START SYNC</button>
+    <button id="start-btn" onclick="startChallenge()">START SYNC</button>
   </div>
 </div>
 
@@ -64,10 +63,7 @@
   </div>
   <div id="center-content">
     <div id="day-display">DAY 1</div>
-    <div id="timer-container">
-      <div id="timer">00:00</div>
-      <button id="secret-reset-btn" onclick="resetCounter(event)"></button>
-    </div>
+    <div id="timer">00:00</div>
     <div id="count">0</div>
   </div>
   <div id="bar-wrapper"><div id="bar-container"><div id="fill"></div></div></div>
@@ -90,37 +86,24 @@
 
   let localData = { count: 0, day: 1, subs: 0, startTime: 0, started: false };
   let isReady = false;
+  let resetTimer; // 롱프레스 감지용
 
-  function startChallenge(e) {
-    if(e) e.stopPropagation(); // 이벤트 전이 방지
-    
-    const dayVal = document.getElementById("input-day").value || 1;
-    const subsVal = document.getElementById("input-subs").value || 0;
-    
-    // DB 업데이트
-    dataRef.set({
-      count: 0,
-      day: dayVal,
-      subs: subsVal,
-      startTime: Date.now(),
-      started: true
-    }).then(() => {
-      console.log("Challenge Started");
-    }).catch((error) => {
-      alert("Firebase 연결 오류: " + error.message);
-    });
+  function startChallenge() {
+    const day = document.getElementById("input-day").value || 1;
+    const subs = document.getElementById("input-subs").value || 0;
+    dataRef.set({ count: 0, day: day, subs: subs, startTime: Date.now(), started: true });
   }
 
-  function resetCounter(e) {
-    if(e) e.stopPropagation();
-    if (!isReady) return;
-    dataRef.update({ count: 0 });
+  // [리셋 로직] 데이터만 0으로 초기화
+  function triggerReset() {
+    if(confirm("카운트를 0으로 초기화할까요?")) {
+      dataRef.update({ count: 0 });
+    }
   }
 
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
-    
     localData = data;
     
     document.getElementById("count").innerText = data.count;
@@ -149,14 +132,27 @@
     }
   }, 1000);
 
+  // [터치 이벤트 관리]
   document.addEventListener('pointerdown', (e) => {
-    // 버튼이나 입력창 클릭 시에는 카운트가 올라가지 않도록 예외 처리
-    if (e.target.closest('button') || e.target.closest('input')) return;
+    // 1. 버튼이나 입력창이면 무시
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
     if (!isReady) return;
-    
+
+    // 2. 타이머를 누른 경우 (롱프레스 리셋 감지 시작)
+    if (e.target.id === 'timer') {
+      resetTimer = setTimeout(triggerReset, 3000); // 3초간 누르면 리셋
+      return;
+    }
+
+    // 3. 그 외 빈 화면 누르면 카운트 업
     if (localData.count < 1000) {
       dataRef.update({ count: localData.count + 1 });
     }
+  });
+
+  // 누르다 떼면 리셋 타이머 취소
+  document.addEventListener('pointerup', () => {
+    clearTimeout(resetTimer);
   });
 </script>
 </body>
