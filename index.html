@@ -25,14 +25,11 @@
   .sub-box { background: rgba(255, 255, 255, 0.05); border: 6px solid var(--accent-color); padding: 2rem; border-radius: 25px; text-align: center; box-shadow: 0 0 30px rgba(255, 0, 85, 0.4); }
   .sub-label-ko { color: var(--accent-color); font-size: 1.8rem; font-weight: 900; display: block; margin-bottom: 2px; }
   .sub-label-en { color: var(--accent-color); font-size: 1rem; font-weight: 900; opacity: 0.9; margin-bottom: 15px; display: block; }
-  #subs-display { font-size: 4rem; font-weight: 900; text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
+  #subs-display { font-size: 4rem; font-weight: 900; }
 
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
-  
-  /* 타이머: 이제 리셋 트리거 역할을 합니다 */
-  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; }
-  
+  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; }
   #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; transition: transform 0.05s; font-weight: 900; }
 
   #bar-wrapper { position: absolute; bottom: 5vh; width: 90%; max-width: 1200px; }
@@ -86,26 +83,19 @@
 
   let localData = { count: 0, day: 1, subs: 0, startTime: 0, started: false };
   let isReady = false;
-  let resetTimer; // 롱프레스 감지용
+  let resetClickCount = 0;
+  let resetTimeout;
 
   function startChallenge() {
-    const day = document.getElementById("input-day").value || 1;
-    const subs = document.getElementById("input-subs").value || 0;
-    dataRef.set({ count: 0, day: day, subs: subs, startTime: Date.now(), started: true });
-  }
-
-  // [리셋 로직] 데이터만 0으로 초기화
-  function triggerReset() {
-    if(confirm("카운트를 0으로 초기화할까요?")) {
-      dataRef.update({ count: 0 });
-    }
+    const d = document.getElementById("input-day").value || 1;
+    const s = document.getElementById("input-subs").value || 0;
+    dataRef.set({ count: 0, day: d, subs: s, startTime: Date.now(), started: true });
   }
 
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
     localData = data;
-    
     document.getElementById("count").innerText = data.count;
     document.getElementById("day-display").innerText = "DAY " + data.day;
     document.getElementById("subs-display").innerText = Number(data.subs).toLocaleString();
@@ -132,27 +122,28 @@
     }
   }, 1000);
 
-  // [터치 이벤트 관리]
+  // 핵심: 메인 화면 클릭 처리
   document.addEventListener('pointerdown', (e) => {
-    // 1. 버튼이나 입력창이면 무시
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-    if (!isReady) return;
+    // 1. 설정 화면이거나 버튼/입력창이면 함수 종료 (START 버튼 방해 금지)
+    if (!isReady || e.target.closest('#setup-screen') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
 
-    // 2. 타이머를 누른 경우 (롱프레스 리셋 감지 시작)
-    if (e.target.id === 'timer') {
-      resetTimer = setTimeout(triggerReset, 3000); // 3초간 누르면 리셋
+    // 2. 히든 리셋 로직: 화면 하단 "진행바" 부분을 1초 내에 3번 연속 터치하면 리셋
+    if (e.target.closest('#bar-wrapper')) {
+      resetClickCount++;
+      clearTimeout(resetTimeout);
+      resetTimeout = setTimeout(() => { resetClickCount = 0; }, 1000);
+      
+      if (resetClickCount >= 3) {
+        if(confirm("카운트를 0으로 초기화할까요?")) dataRef.update({ count: 0 });
+        resetClickCount = 0;
+      }
       return;
     }
 
-    // 3. 그 외 빈 화면 누르면 카운트 업
+    // 3. 일반 화면 터치 시 카운트 업
     if (localData.count < 1000) {
       dataRef.update({ count: localData.count + 1 });
     }
-  });
-
-  // 누르다 떼면 리셋 타이머 취소
-  document.addEventListener('pointerup', () => {
-    clearTimeout(resetTimer);
   });
 </script>
 </body>
