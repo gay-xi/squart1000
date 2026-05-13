@@ -22,17 +22,15 @@
   /* 메인 화면 */
   #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; justify-content: center; align-items: center; position: relative; box-sizing: border-box; }
   
-  /* 구독자 박스 - 글자 크기 키움 */
   #sub-container { position: absolute; left: 3vw; top: 5vh; z-index: 10; }
   .sub-box { background: rgba(255, 255, 255, 0.05); border: 6px solid var(--accent-color); padding: 2rem 3rem; border-radius: 30px; text-align: center; box-shadow: 0 0 40px rgba(255, 0, 85, 0.4); }
-  .sub-label-ko { color: var(--accent-color); font-size: 2.2rem; font-weight: 900; display: block; margin-bottom: 5px; } /* 기존 1.5 -> 2.2 */
-  .sub-label-en { color: var(--accent-color); font-size: 1.2rem; font-weight: 900; opacity: 0.8; margin-bottom: 12px; display: block; letter-spacing: 1px; } /* 기존 0.9 -> 1.2 */
-  #subs-display { font-size: 5rem; font-weight: 900; text-shadow: 0 0 20px rgba(255, 255, 255, 0.2); } /* 기존 4 -> 5 */
+  .sub-label-ko { color: var(--accent-color); font-size: 2.2rem; font-weight: 900; display: block; margin-bottom: 5px; }
+  .sub-label-en { color: var(--accent-color); font-size: 1.2rem; font-weight: 900; opacity: 0.8; margin-bottom: 12px; display: block; letter-spacing: 1px; }
+  #subs-display { font-size: 5rem; font-weight: 900; text-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
 
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
   
-  /* 타이머 */
   #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; position: relative; z-index: 20; }
   
   #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; font-weight: 900; transition: transform 0.05s; }
@@ -94,6 +92,7 @@
 
   let localData = { count: 0, day: 1, subs: 0, startTime: 0, started: false };
   let resetTimer;
+  let lastActionTime = 0; // 중복 실행 방지용 타임스탬프
 
   function startChallenge() {
     const dayVal = document.getElementById("input-day").value || 1;
@@ -103,30 +102,45 @@
 
   const mainPanel = document.getElementById('main-panel');
   
-  const handlePressStart = (e) => {
+  const handleAction = (e) => {
+    // 중복 방지: 0.1초 이내의 연속 호출 차단 (mousedown/touchstart 동시 발생 대응)
+    const now = Date.now();
+    if (now - lastActionTime < 100) return;
+    lastActionTime = now;
+
     if (e.target.id === 'timer') {
+      // 2초 꾹 누르면 초기화 및 설정 화면 복귀
       resetTimer = setTimeout(() => {
-        if(confirm("모든 데이터를 초기화할까요? (시간 포함)")) {
-          // 리셋 시 카운트 0 + 시작 시간을 현재로 갱신
-          dataRef.update({ 
+        if(confirm("모든 데이터를 초기화하고 설정 화면으로 돌아갈까요?")) {
+          dataRef.set({ 
             count: 0,
-            startTime: Date.now() 
+            day: 1,
+            subs: 0,
+            startTime: 0,
+            started: false // 다시 설정 화면으로 보내는 핵심값
           });
         }
-      }, 3000);
+      }, 2000);
     } else {
+      // 일반 클릭 시 카운트 +1
       if (localData.count < 1000) {
         dataRef.update({ count: localData.count + 1 });
       }
     }
   };
 
-  const handlePressEnd = () => { if (resetTimer) clearTimeout(resetTimer); };
+  const cancelReset = () => { if (resetTimer) clearTimeout(resetTimer); };
 
-  mainPanel.addEventListener('mousedown', handlePressStart);
-  mainPanel.addEventListener('touchstart', handlePressStart, { passive: true });
-  window.addEventListener('mouseup', handlePressEnd);
-  window.addEventListener('touchend', handlePressEnd);
+  // 클릭/터치 이벤트 등록
+  mainPanel.addEventListener('mousedown', handleAction);
+  mainPanel.addEventListener('touchstart', (e) => {
+    // handleAction 호출 전 브라우저 기본 동작 방지 (줌 방지 등)
+    if (e.target.id !== 'timer') e.preventDefault(); 
+    handleAction(e);
+  }, { passive: false });
+
+  window.addEventListener('mouseup', cancelReset);
+  window.addEventListener('touchend', cancelReset);
 
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
@@ -143,6 +157,7 @@
     void countEl.offsetWidth; 
     countEl.classList.add("bump");
 
+    // started 상태에 따라 화면 전환
     if (data.started) {
       document.getElementById("setup-screen").style.display = "none";
       document.getElementById("main-panel").style.display = "flex";
