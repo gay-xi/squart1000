@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>1000 Squat Sync (ColorTest)</title>
+<title>1000 Squat Sync</title>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
@@ -11,45 +11,27 @@
   :root { --primary-color: #ccff00; --accent-color: #ff0055; }
   html, body { margin: 0; padding: 0; background: #000; color: #fff; height: 100%; width: 100%; overflow: hidden; font-family: 'Arial Black', sans-serif; touch-action: manipulation; }
 
-  /* 🛠️ [캐시 확인용 스타일 변경] 설정 화면 */
-  #setup-screen {
-    position: fixed; inset: 0;
-    /* 배경색을 검은색에서 '어두운 보라색'으로 변경 (코드 반영 확인용) */
-    background: #2a004a; 
-    z-index: 2000;
-    display: flex; justify-content: center; align-items: center; padding: 20px;
-  }
-  .setup-box {
-    background: #1a1a1a; padding: 2rem; border-radius: 20px;
-    border: 3px solid var(--primary-color);
-    width: 100%; max-width: 400px; text-align: center;
-  }
+  /* 설정 화면 */
+  #setup-screen { position: fixed; inset: 0; background: #111; z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px; }
+  .setup-box { background: #222; padding: 2rem; border-radius: 20px; border: 3px solid var(--primary-color); width: 100%; max-width: 400px; text-align: center; }
   .input-group { margin-bottom: 20px; text-align: left; }
   label { display: block; font-size: 0.9rem; opacity: 0.7; margin-bottom: 8px; font-family: sans-serif; }
   input { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 12px; font-size: 1.5rem; border-radius: 10px; box-sizing: border-box; }
-  
-  /* 🛠️ [캐시 확인용 스타일 변경] START 버튼 */
-  #start-btn {
-    width: 100%;
-    /* 버튼색을 라임색에서 '핫핑크'로 변경 */
-    background: var(--accent-color); 
-    color: #fff; /* 글자색은 흰색으로 */
-    border: none; padding: 15px; font-size: 1.2rem; font-weight: bold;
-    border-radius: 10px; cursor: pointer;
-  }
+  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 10px; cursor: pointer; }
 
-  /* 메인 레이아웃 (색상 유지) */
+  /* 메인 레이아웃 */
   #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; justify-content: center; align-items: center; position: relative; box-sizing: border-box; }
   #sub-container { position: absolute; left: 3vw; top: 5vh; z-index: 10; }
   .sub-box { background: rgba(255, 255, 255, 0.05); border: 6px solid var(--accent-color); padding: 2rem; border-radius: 25px; text-align: center; box-shadow: 0 0 30px rgba(255, 0, 85, 0.4); }
   .sub-label-ko { color: var(--accent-color); font-size: 1.8rem; font-weight: 900; display: block; margin-bottom: 2px; }
   .sub-label-en { color: var(--accent-color); font-size: 1rem; font-weight: 900; opacity: 0.9; margin-bottom: 15px; display: block; }
   #subs-display { font-size: 4rem; font-weight: 900; text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
+
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
   
-  /* 타이머: 꾹 누르면 리셋됨 */
-  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; }
+  /* 타이머: 롱프레스 영역 */
+  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; z-index: 50; }
   
   #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; transition: transform 0.05s; font-weight: 900; }
   #bar-wrapper { position: absolute; bottom: 5vh; width: 90%; max-width: 1200px; }
@@ -63,10 +45,10 @@
 
 <div id="setup-screen">
   <div class="setup-box">
-    <h2 style="color:#fff; margin-bottom: 30px;">SET NEW CHALLENGE</h2>
+    <h2 style="color:var(--primary-color); margin-bottom: 30px;">CHALLENGE SET</h2>
     <div class="input-group"><label>DAY</label><input type="number" id="input-day" value="1"></div>
     <div class="input-group"><label>SUBSCRIBERS</label><input type="number" id="input-subs" value="1000"></div>
-    <button id="start-btn" onclick="startChallenge(event)">START SYNC</button>
+    <button id="start-btn">START SYNC</button>
   </div>
 </div>
 
@@ -104,36 +86,31 @@
   let isReady = false;
   let resetTimer;
 
-  // [시작 함수 수정한 부분] onclick에서 event를 받도록 변경
-  function startChallenge(e) {
-    if(e) e.stopPropagation(); // 버튼 터치가 메인 화면 카운트로 가지 않도록 방지
+  // [시작 버튼 로직] - 가장 확실한 방식으로 수정
+  document.getElementById('start-btn').addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     const dayVal = document.getElementById("input-day").value || 1;
     const subsVal = document.getElementById("input-subs").value || 0;
     
-    // DB에 데이터 전송
     dataRef.set({
       count: 0,
       day: dayVal,
       subs: subsVal,
       startTime: Date.now(),
       started: true
-    }).then(() => {
-        // 전송 성공 시 화면 전환
-        document.getElementById("setup-screen").style.display = "none";
-        document.getElementById("main-panel").style.display = "flex";
-        isReady = true;
-    }).catch(error => {
-        alert("Firebase 오류: " + error.message);
     });
-  }
+  });
 
+  // [리셋 로직]
   function triggerReset() {
     if(confirm("카운트를 0으로 초기화할까요?")) {
       dataRef.update({ count: 0 });
     }
   }
 
+  // [데이터 실시간 동기화]
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
@@ -156,6 +133,7 @@
     }
   });
 
+  // [타이머 계산]
   setInterval(() => {
     if (localData.started && localData.startTime > 0) {
       const diff = Math.floor((Date.now() - localData.startTime) / 1000);
@@ -165,15 +143,20 @@
     }
   }, 1000);
 
+  // [화면 클릭 이벤트]
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('#setup-screen')) return;
+    // 설정 화면에 있을 때는 카운트 업 무시
     if (!isReady) return;
+    // 버튼이나 입력창 클릭 시 무시
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
 
+    // 1. 타이머를 누른 경우 (3초 롱프레스 감지)
     if (e.target.id === 'timer') {
       resetTimer = setTimeout(triggerReset, 3000);
       return;
     }
 
+    // 2. 그 외 화면 누르면 카운트 +1
     if (localData.count < 1000) {
       dataRef.update({ count: localData.count + 1 });
     }
