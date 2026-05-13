@@ -11,32 +11,36 @@
   :root { --primary-color: #ccff00; --accent-color: #ff0055; }
   html, body { margin: 0; padding: 0; background: #000; color: #fff; height: 100%; width: 100%; overflow: hidden; font-family: 'Arial Black', sans-serif; touch-action: manipulation; }
 
-  /* 설정 화면 - 최상위 레이어 */
+  /* 설정 화면 */
   #setup-screen { position: fixed; inset: 0; background: #111; z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
   .setup-box { background: #222; padding: 2rem; border-radius: 20px; border: 3px solid var(--primary-color); width: 100%; max-width: 400px; text-align: center; }
   .input-group { margin-bottom: 20px; text-align: left; }
   label { display: block; font-size: 0.9rem; opacity: 0.7; margin-bottom: 8px; font-family: sans-serif; }
   input { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 12px; font-size: 1.5rem; border-radius: 10px; box-sizing: border-box; }
-  
-  /* 스타트 버튼 */
   #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 18px; font-size: 1.4rem; font-weight: bold; border-radius: 10px; cursor: pointer; }
 
   /* 메인 화면 */
   #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; justify-content: center; align-items: center; position: relative; box-sizing: border-box; }
+  
+  /* 구독자 박스 복구 */
   #sub-container { position: absolute; left: 3vw; top: 5vh; z-index: 10; }
-  .sub-box { background: rgba(255, 255, 255, 0.05); border: 6px solid var(--accent-color); padding: 2rem; border-radius: 25px; text-align: center; }
-  #subs-display { font-size: 4rem; font-weight: 900; }
+  .sub-box { background: rgba(255, 255, 255, 0.05); border: 6px solid var(--accent-color); padding: 1.5rem 2.5rem; border-radius: 25px; text-align: center; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); }
+  .sub-label-ko { color: var(--accent-color); font-size: 1.5rem; font-weight: 900; display: block; margin-bottom: 2px; }
+  .sub-label-en { color: var(--accent-color); font-size: 0.9rem; font-weight: 900; opacity: 0.8; margin-bottom: 10px; display: block; }
+  #subs-display { font-size: 4rem; font-weight: 900; text-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
+
   #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
   #day-display { font-size: 6vh; color: var(--primary-color); margin-bottom: 1vh; }
   
-  /* 타이머: 히든 리셋 영역 */
-  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; }
+  /* 타이머: 리셋 트리거 */
+  #timer { font-size: 12vh; font-family: monospace; opacity: 0.8; margin-bottom: 1vh; font-weight: bold; letter-spacing: -2px; cursor: pointer; position: relative; z-index: 20; }
   
-  #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; transition: transform 0.05s; font-weight: 900; }
+  #count { font-size: 42vh; line-height: 0.8; margin: 1vh 0; font-weight: 900; transition: transform 0.05s; }
   #bar-wrapper { position: absolute; bottom: 5vh; width: 90%; max-width: 1200px; }
   #bar-container { height: 35px; background: #222; border-radius: 20px; overflow: hidden; border: 2px solid #333; }
   #fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary-color), #00ff88); transition: width 0.3s; }
   .bump { transform: scale(1.08); color: var(--primary-color); }
+
   @media (max-aspect-ratio: 1/1) { #sub-container { position: static; margin-bottom: 2vh; } #count { font-size: 30vh; } #timer { font-size: 10vh; } }
 </style>
 </head>
@@ -51,9 +55,11 @@
   </div>
 </div>
 
-<div id="main-panel" onmousedown="handleMainClick(event)" ontouchstart="handleMainClick(event)">
+<div id="main-panel">
   <div id="sub-container">
     <div class="sub-box">
+      <span class="sub-label-ko">구독자 수</span>
+      <span class="sub-label-en">SUBSCRIBERS</span>
       <div id="subs-display">0</div>
     </div>
   </div>
@@ -66,7 +72,6 @@
 </div>
 
 <script>
-  // 사용자 Firebase 설정 적용 완료
   const firebaseConfig = {
     apiKey: "AIzaSyDAJ5P1LqwCXbFco4a42HPWsHx8GXd4muA",
     authDomain: "squart1000.firebaseapp.com",
@@ -84,42 +89,43 @@
   let localData = { count: 0, day: 1, subs: 0, startTime: 0, started: false };
   let resetTimer;
 
-  // [시작 기능] 메인 클릭 이벤트와 분리됨
   function startChallenge() {
     const dayVal = document.getElementById("input-day").value || 1;
     const subsVal = document.getElementById("input-subs").value || 0;
-    
-    dataRef.set({
-      count: 0,
-      day: dayVal,
-      subs: subsVal,
-      startTime: Date.now(),
-      started: true
-    });
+    dataRef.set({ count: 0, day: dayVal, subs: subsVal, startTime: Date.now(), started: true });
   }
 
-  // [메인 화면 클릭/터치 처리]
-  function handleMainClick(e) {
-    // 타이머 영역을 누른 경우 (3초 롱프레스 리셋)
+  // 메인 카운트 및 리셋 로직 통합 처리
+  const mainPanel = document.getElementById('main-panel');
+  
+  // 마우스/터치 시작
+  const handlePressStart = (e) => {
     if (e.target.id === 'timer') {
+      // 타이머를 누르면 3초 후 리셋 실행
       resetTimer = setTimeout(() => {
         if(confirm("카운트를 0으로 초기화할까요?")) {
           dataRef.update({ count: 0 });
         }
       }, 3000);
-      return;
+    } else {
+      // 타이머 이외의 화면을 누르면 즉시 카운트 +1
+      if (localData.count < 1000) {
+        dataRef.update({ count: localData.count + 1 });
+      }
     }
+  };
 
-    // 그 외 메인 패널 어디든 누르면 카운트 업
-    if (localData.count < 1000) {
-      dataRef.update({ count: localData.count + 1 });
-    }
-  }
+  // 마우스/터치 종료 (리셋 타이머 취소)
+  const handlePressEnd = () => {
+    if (resetTimer) clearTimeout(resetTimer);
+  };
 
-  // 롱프레스 중단 처리
-  window.onmouseup = window.ontouchend = () => clearTimeout(resetTimer);
+  // 이벤트 리스너 등록
+  mainPanel.addEventListener('mousedown', handlePressStart);
+  mainPanel.addEventListener('touchstart', handlePressStart, { passive: true });
+  window.addEventListener('mouseup', handlePressEnd);
+  window.addEventListener('touchend', handlePressEnd);
 
-  // 실시간 동기화
   dataRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
@@ -144,7 +150,6 @@
     }
   });
 
-  // 타이머
   setInterval(() => {
     if (localData.started && localData.startTime > 0) {
       const diff = Math.floor((Date.now() - localData.startTime) / 1000);
