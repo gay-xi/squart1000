@@ -3,85 +3,74 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>1000 Squat Sync (Tab S7 FE Optimized)</title>
+<title>1000 Squat Sync (Master Layout Optimized)</title>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <style>
   :root { --primary-color: #ccff00; --accent-color: #ff0055; }
-  html, body { margin: 0; padding: 0; background: #000; color: #fff; height: 100%; width: 100%; overflow: hidden; font-family: 'Arial Black', sans-serif; touch-action: manipulation; }
-
-  /* 설정 화면 */
-  #setup-screen { position: fixed; inset: 0; background: #111; z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
-  .setup-box { background: #222; padding: 2rem; border-radius: 20px; border: 3px solid var(--primary-color); width: 100%; max-width: 400px; text-align: center; }
-  .input-group { margin-bottom: 20px; text-align: left; }
-  label { display: block; font-size: 0.9rem; opacity: 0.7; margin-bottom: 8px; font-family: sans-serif; }
-  input { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 12px; font-size: 1.5rem; border-radius: 10px; box-sizing: border-box; }
-  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 18px; font-size: 1.4rem; font-weight: bold; border-radius: 10px; cursor: pointer; }
-
-  /* 메인 화면 */
-  #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; justify-content: center; align-items: center; position: relative; box-sizing: border-box; }
   
-  /* 🛠️ S7 FE 가로 모드에 맞춰 구독자 수 영역 대폭 확대 및 위치 조정 */
+  /* 전광판 느낌의 꽉 찬 배경 설계 */
+  html, body { 
+    margin: 0; padding: 0; 
+    background-color: #000;
+    /* 은은한 디지털 전광판 격자 패턴 추가 */
+    background-image: 
+      linear-gradient(rgba(10,10,10,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(10,10,10,0.3) 1px, transparent 1px);
+    background-size: 50px 50px;
+    color: #fff; height: 100%; width: 100%; overflow: hidden; 
+    font-family: 'Arial Black', sans-serif; touch-action: manipulation; 
+  }
+
+  /* 설정 화면 (로직 유지, 디자인 정돈) */
+  #setup-screen { position: fixed; inset: 0; background: #080808; z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+  .setup-box { background: #1a1a1a; padding: 3rem; border-radius: 30px; border: 4px solid var(--primary-color); width: 100%; max-width: 500px; text-align: center; box-shadow: 0 0 50px rgba(204, 255, 0, 0.2); }
+  .input-group { margin-bottom: 25px; text-align: left; }
+  label { display: block; font-size: 1rem; opacity: 0.8; margin-bottom: 10px; font-family: sans-serif; }
+  input { width: 100%; background: #000; border: 2px solid #333; color: #fff; padding: 15px; font-size: 1.8rem; border-radius: 15px; box-sizing: border-box; }
+  #start-btn { width: 100%; background: var(--primary-color); color: #000; border: none; padding: 20px; font-size: 1.6rem; font-weight: bold; border-radius: 15px; cursor: pointer; transition: 0.1s; }
+  #start-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+  /* 메인 레이아웃 (가장 큰 변화) */
+  #main-panel { display: none; height: 100%; width: 100%; flex-direction: column; position: relative; box-sizing: border-box; justify-content: space-between; padding-bottom: 3vh; }
+  
+  /* 🛠️ [MASTER FIX] 구독자 수 영역: 중앙 상단 배치, 대폭 확대 */
   #sub-container { 
-    position: absolute; 
-    left: 2vw; 
-    top: 6vh; 
-    z-index: 10; 
-    width: auto;
+    display: flex; justify-content: center; width: 100%; padding-top: 4vh; z-index: 10; 
   }
-  .sub-box { 
-    background: transparent; 
-    border: none; 
-    padding: 0; 
-    text-align: left; 
-  }
-  .sub-label-ko { 
-    color: var(--accent-color); 
-    font-size: 3.5rem; /* 태블릿에 맞춰 대폭 확대 */
-    font-weight: 900; 
-    display: block; 
-    margin-bottom: -10px; 
-    letter-spacing: -2px;
-  }
-  .sub-label-en { 
-    color: var(--accent-color); 
-    font-size: 1.5rem; 
-    font-weight: 900; 
-    opacity: 0.8; 
-    display: block; 
-    margin-bottom: 15px;
-  }
+  .sub-box { text-align: center; width: 90%; max-width: 1500px; }
+  .sub-label-ko { color: var(--accent-color); font-size: 4rem; /* 매우 크게 상향 */ font-weight: 900; letter-spacing: -3px; line-height: 1.1; margin-bottom: 1px; }
+  .sub-label-en { color: var(--accent-color); font-size: 1.8rem; font-weight: 900; opacity: 0.8; margin-bottom: 20px; letter-spacing: 1px; }
   #subs-display { 
-    font-size: 10rem; /* 구독자 숫자 대폭 확대 */
-    font-weight: 900; 
-    color: #fff; 
-    line-height: 0.9;
-    text-shadow: 4px 4px 15px rgba(255, 0, 85, 0.6); 
+    font-size: 12.5rem; /* 사진 속 숫자를 메인 카운트만큼 확대 */
+    font-weight: 900; color: #fff; line-height: 0.9; 
+    text-shadow: 0 0 30px rgba(255, 0, 85, 0.7); 
+    letter-spacing: -4px;
   }
 
-  #center-content { text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; }
-  #day-display { font-size: 8vh; color: var(--primary-color); margin-bottom: 0vh; font-weight: 900; }
+  /* 🛠️ [MASTER FIX] 여백 제거 및 요소 정밀 배치 */
+  #center-content { 
+    text-align: center; display: flex; flex-direction: column; align-items: center; width: 100%; user-select: none; flex-grow: 1; justify-content: center; padding-top: 2vh;
+  }
+  #day-display { font-size: 8.5vh; color: var(--primary-color); margin-bottom: -1vh; font-weight: 900; letter-spacing: -2px; }
+  #timer { font-size: 16vh; font-family: monospace; opacity: 0.8; font-weight: bold; letter-spacing: -4px; cursor: pointer; position: relative; z-index: 20; color: #fff; }
+  #count { font-size: 55vh; /* 화면 중앙을 꽉 채우는 압도적인 크기 */ line-height: 0.8; margin: -2vh 0; font-weight: 900; transition: transform 0.05s; }
   
-  /* 타이머: 가로 모드 여백 활용을 위해 크기 상향 */
-  #timer { font-size: 15vh; font-family: monospace; opacity: 0.8; font-weight: bold; letter-spacing: -3px; cursor: pointer; position: relative; z-index: 20; }
-  
-  /* 메인 카운트: 화면 중심을 꽉 채우도록 설정 */
-  #count { font-size: 50vh; line-height: 0.8; margin: 0; font-weight: 900; transition: transform 0.05s; }
-  
-  #bar-wrapper { position: absolute; bottom: 4vh; width: 92%; max-width: 1600px; }
-  #bar-container { height: 45px; background: #222; border-radius: 25px; overflow: hidden; border: 3px solid #333; }
-  #fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary-color), #00ff88); transition: width 0.3s; }
-  .bump { transform: scale(1.05); color: var(--primary-color); }
+  /* 🛠️ [MASTER FIX] 하단 바: 존재감 상향 */
+  #bar-wrapper { width: 95%; max-width: 1700px; margin: 0 auto; }
+  #bar-container { height: 50px; background: #1a1a1a; border-radius: 30px; overflow: hidden; border: 4px solid #2a2a2a; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+  #fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary-color), #00ff88); transition: width 0.3s; position: relative; }
+  #fill::after { content: ''; position: absolute; top:0; left:0; right:0; bottom:0; background: linear-gradient(0deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.3) 100%); }
 
-  /* 🛠️ 세로 모드(태블릿 세로 또는 폰) 대응은 기존 유지 */
+  /* 애니메이션 및 모바일 대응 (S7 FE 가로 우선) */
+  .bump { transform: scale(1.05); color: var(--primary-color); }
   @media (max-aspect-ratio: 1/1) { 
-    #sub-container { position: static; margin-bottom: 2vh; text-align: center; } 
-    .sub-box { text-align: center; }
-    .sub-label-ko { font-size: 2.2rem; }
-    #subs-display { font-size: 5rem; }
+    #subs-display { font-size: 8rem; }
+    #sub-container { padding-top: 2vh; }
     #count { font-size: 35vh; } 
     #timer { font-size: 12vh; } 
+    .sub-label-ko { font-size: 2.5rem; }
   }
 </style>
 </head>
@@ -89,10 +78,10 @@
 
 <div id="setup-screen">
   <div class="setup-box">
-    <h2 style="color:var(--primary-color); margin-bottom: 30px;">CHALLENGE SET</h2>
-    <div class="input-group"><label>DAY</label><input type="number" id="input-day" value="1"></div>
-    <div class="input-group"><label>SUBSCRIBERS</label><input type="number" id="input-subs" value="1000"></div>
-    <button id="start-btn" onclick="startChallenge()">START SYNC</button>
+    <h2 style="color:var(--primary-color); margin-bottom: 30px; font-size: 2.2rem;">DIGITAL STUDIOS SYNC</h2>
+    <div class="input-group"><label>SET DAY (1-1000)</label><input type="number" id="input-day" value="1000"></div>
+    <div class="input-group"><label>SET SUBSCRIBERS</label><input type="number" id="input-subs" value="10101010"></div>
+    <button id="start-btn" onclick="startChallenge()">START CHALLENGE</button>
   </div>
 </div>
 
@@ -104,11 +93,13 @@
       <div id="subs-display">0</div>
     </div>
   </div>
+  
   <div id="center-content">
-    <div id="day-display">DAY 1</div>
+    <div id="day-display">DAY 1000</div>
     <div id="timer">00:00</div>
     <div id="count">0</div>
   </div>
+  
   <div id="bar-wrapper"><div id="bar-container"><div id="fill"></div></div></div>
 </div>
 
@@ -133,8 +124,8 @@
   let lastActionTime = 0;
 
   function startChallenge() {
-    const dayVal = document.getElementById("input-day").value || 1;
-    const subsVal = document.getElementById("input-subs").value || 0;
+    const dayVal = document.getElementById("input-day").value || 1000;
+    const subsVal = document.getElementById("input-subs").value || 10101010;
     dataRef.set({ count: 0, day: dayVal, subs: subsVal, startTime: Date.now(), started: true });
   }
 
@@ -147,7 +138,7 @@
 
     if (e.target.id === 'timer') {
       resetTimer = setTimeout(() => {
-        if(confirm("모든 데이터를 초기화하고 설정 화면으로 돌아갈까요?")) {
+        if(confirm("초기화하고 설정 화면으로 복귀할까요?")) {
           dataRef.set({ count: 0, day: 1, subs: 0, startTime: 0, started: false });
         }
       }, 2000);
